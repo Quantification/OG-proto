@@ -13,6 +13,7 @@ import com.opengamma.analytics.financial.model.volatility.surface.BlackVolatilit
 import com.opengamma.analytics.math.curve.ConstantDoublesCurve;
 import com.opengamma.analytics.math.surface.ConstantDoublesSurface;
 import com.opengamma.analytics.math.surface.Surface;
+import com.opengamma.lang.annotation.ExternalFunction;
 import com.opengamma.util.money.Currency;
 import org.junit.Test;
 
@@ -45,15 +46,15 @@ public class EquityOptionTest {
                         final SettlementType settlementType)
      */
 
-    private static final double EXPIRY_DATE = 0.25;
+    private static final double TIME_TO_EXPIRY = 0.25;
     private static final double SETTLEMENT_DATE = 0.253;
     private static final double STRIKE = 100;
     private static final boolean IS_CALL = false;
     private static final Currency CCY = Currency.AUD;
-    private static final double UNIT_AMOUNT = 9;
+    private static final double UNIT_AMOUNT = 10;
     private static final ExerciseDecisionType EXERCISE = ExerciseDecisionType.EUROPEAN;
     private static final SettlementType SETTLEMENT_TYPE = SettlementType.CASH;
-    private static final EquityOption EUROPEAN_PUT = new EquityOption(EXPIRY_DATE, SETTLEMENT_DATE, STRIKE, IS_CALL, CCY, UNIT_AMOUNT, EXERCISE, SETTLEMENT_TYPE);
+    private static final EquityOption EUROPEAN_PUT = new EquityOption(TIME_TO_EXPIRY, SETTLEMENT_DATE, STRIKE, IS_CALL, CCY, UNIT_AMOUNT, EXERCISE, SETTLEMENT_TYPE);
 
 
     //LogNormal volatility surface
@@ -92,14 +93,58 @@ public class EquityOptionTest {
         assertEquals(discountFactor,discountFlatRate,TOL);
 
         //Expected
-        final double expectedPV = UNIT_AMOUNT * BlackFormulaRepository.price(forwardEquityPrice, STRIKE, EXPIRY_DATE, logNormalVol, IS_CALL);
+        final double expectedPV =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
 
         //Act
        final EquityOptionBlackMethod Calc = EquityOptionBlackMethod.getInstance();
-        final double pv =  Calc.presentValue(EUROPEAN_PUT, marketData);
+        final double pv =  Calc.presentValue(EUROPEAN_PUT, marketData)/UNIT_AMOUNT ;
 
         //Assert
         assertEquals(expectedPV,pv,TOL);
 
+    }
+
+    @Test
+    public void  testImpliedVolatilityBlackModel(){
+    /**
+     * Get the log-normal (Black) implied volatility of an  European option
+     * @param price The <b>forward</b> price - i.e. the market price divided by the numeraire (i.e. the zero bond p(0,T) for the T-forward measure)
+     * @param forward The forward value of the underlying
+     * @param strike The Strike
+     * @param timeToExpiry The time-to-expiry
+     * @param isCall true for call
+     * @return log-normal (Black) implied volatility
+     */
+        //Specific value
+    final double forwardOptionPrice = 19.74126513658475;
+    final double implVol =  BlackFormulaRepository.impliedVolatility(forwardOptionPrice, forwardEquityPrice,STRIKE, TIME_TO_EXPIRY, IS_CALL);
+
+        //Assert
+        assertEquals(logNormalVol,implVol,TOL);
+    }
+
+    @Test
+    public void testDeltaBlackModel()
+    {
+        /**
+         * The forward (i.e. driftless) delta
+         * @param forward The forward value of the underlying
+         * @param strike The Strike
+         * @param timeToExpiry The time-to-expiry
+         * @param lognormalVol The log-normal volatility
+         * @param isCall true for call
+         * @return The forward delta
+         */
+        final double delta =  BlackFormulaRepository.delta(forwardEquityPrice,STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+
+        //ExpectedValue
+        double dUnderlyingPrice = 0.01;
+        final double presentValueUpper =  BlackFormulaRepository.price(forwardEquityPrice+dUnderlyingPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double presentValueLower =  BlackFormulaRepository.price(forwardEquityPrice-dUnderlyingPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double dPresentValue = presentValueUpper -presentValueLower;
+        final double expectedDelta =dPresentValue/(2*dUnderlyingPrice);
+
+        //Assert
+        assertEquals(expectedDelta,delta,1E-6);
     }
 }
