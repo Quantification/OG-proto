@@ -9,6 +9,7 @@ import com.opengamma.analytics.math.statistics.distribution.ProbabilityDistribut
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by Alexis on 05.05.15.
@@ -17,19 +18,11 @@ public class ValueAtRiskNormalDistrTest {
 
     private static final double HORIZON = 10;
     private static final double PERIODS = 250;
-    //Three sigmas = 99%
-    private static final double QUANTILE = new NormalDistribution(0, 1).getCDF(3.);
-    private static final NormalVaRParameters PARAMETERS = new NormalVaRParameters(HORIZON, PERIODS, QUANTILE);
-    private static final double STD_DEV =0.4; // per year
-    private static final Function1D<Double, Double> MEAN_PROVIDER = new Function1D<Double, Double>() {
+    //Three sigmas = 99% THis confidence interval is close to 1 in textbooks.
+    private static final double QUANTILE_99 = new NormalDistribution(0, 1).getCDF(3.);
+    private static final NormalVaRParameters PARAMETERS = new NormalVaRParameters(HORIZON, PERIODS, QUANTILE_99);
 
-        @Override
-        public Double evaluate(final Double x) {
-            return MEAN;
-        }
-
-    };
-    private static final double MEAN = 1; // per year
+    private static final double STD_DEV = 0.5; // per year
     private static final Function1D<Double, Double> STD_PROVIDER = new Function1D<Double, Double>() {
 
         @Override
@@ -38,54 +31,81 @@ public class ValueAtRiskNormalDistrTest {
         }
 
     };
-    private static final NormalLinearVaRCalculator<Double> CALCULATOR = new NormalLinearVaRCalculator<>(MEAN_PROVIDER, STD_PROVIDER);
 
     private static final double TOL = 1E-12;
 
     @Test
-    public void testValueAtRisk() {
-        final VaRCalculationResult calcResult = CALCULATOR.evaluate(PARAMETERS, 0.);
+    public void normalDistribution_WithZeroMean_ReturnsNegativeVaR_FAILS() {
+
+        final double MEAN_ZERO = 0.0; // per year
+        final Function1D<Double, Double> MEAN_PROVIDER = new Function1D<Double, Double>() {
+
+            @Override
+            public Double evaluate(final Double x) {
+                return MEAN_ZERO;
+            }
+
+        };
+        final NormalLinearVaRCalculator<Double> CALC = new NormalLinearVaRCalculator<>(MEAN_PROVIDER, STD_PROVIDER);
+
+        final VaRCalculationResult calcResult = CALC.evaluate(PARAMETERS, 0.);
+        final double VaR = calcResult.getVaRValue();
 
         //Expected
         double time = HORIZON/PERIODS;
         double timeRoot = Math.sqrt(HORIZON/PERIODS);
         final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(0, 1);
 
-        //Strangely the shifted and scaled distribution gives the same result as the standard one.
-        final double ZScore = NORMAL.getInverseCDF(1-QUANTILE);
+        // Must be negative, otherwise senseless
+        final double ZScore = NORMAL.getInverseCDF(1-QUANTILE_99);
 
-        final double resultExpected = ZScore*STD_DEV*timeRoot + MEAN*time;
-        final double resultExpected_wrongSign = ZScore*STD_DEV*timeRoot- MEAN*time;
+        final double resultExpected = ZScore * STD_DEV * timeRoot + MEAN_ZERO * time;
+        final double resultExpected_wrongSign = ZScore*STD_DEV*timeRoot- MEAN_ZERO*time;
         //Magic number is from the original test
-        assertEquals(calcResult.getVaRValue(), 3 * 0.2 - 0.4*0.4*0.1, 1e-9);
+        //assertEquals(resultExpected, VaR, 1e-9);
+        assertTrue("VaR must be negative for confidence interval of 0.99",VaR < 0);
     }
 
-    @Test
-    public void testValueAtRiskMedian_FAILS() {
+    @Test // VaR at 0.5 quantile must reproduce mean value
+    public void normalDistribution_Quantile05_ReturnsVaREqualToMedian_FAILS() {
         final double medianQuantile = 0.5;
         final NormalVaRParameters PARAM_Median = new NormalVaRParameters(HORIZON, PERIODS, medianQuantile);
-        final VaRCalculationResult calcResult = CALCULATOR.evaluate(PARAM_Median, 0.);
 
+        final double MEAN_NONZERO = 0.4; // per year
+        final Function1D<Double, Double> MEAN_PROVIDER = new Function1D<Double, Double>() {
+
+            @Override
+            public Double evaluate(final Double x) {
+                return MEAN_NONZERO;
+            }
+
+        };
+        final NormalLinearVaRCalculator<Double> CALC = new NormalLinearVaRCalculator<>(MEAN_PROVIDER, STD_PROVIDER);
+
+        // Act
+        final VaRCalculationResult calcResult = CALC.evaluate(PARAM_Median, 0.);
+        final double VaR = calcResult.getVaRValue();
         //Expected
         double time = HORIZON/PERIODS;
-        double expectedVaR = MEAN*time;
-        assertEquals(expectedVaR,calcResult.getVaRValue(), 1e-9);
+        double median = MEAN_NONZERO*time;
+        assertEquals(median,VaR, 1e-6);
     }
 
-    @Test
+    @Test // For symmetric distributions inverse Cumulative Distribution Function
+    // at 0.5 quantile must return mean value
     public void testNormalInverseCumulativeDistribution_FAILS()
     {
-        double timeRoot = Math.sqrt(HORIZON/PERIODS);
         final double standardMean = 0;
         final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(standardMean, 1);
+
         final double shiftedMean = 100;
         final ProbabilityDistribution<Double> NORMAL_Shifted = new NormalDistribution(shiftedMean,1);
 
         // Quantile corresponds to the mean = median
         final double quantile = 0.5;
-        final double ZScore = NORMAL.getInverseCDF(quantile);
+        final double ZScore = NORMAL.getInverseCDF(quantile);// =0
         assertEquals(standardMean,ZScore,TOL);
-        final double ZScore_Shifted = NORMAL_Shifted.getInverseCDF(quantile);
+        final double ZScore_Shifted = NORMAL_Shifted.getInverseCDF(quantile);//=100
         //Must be true
         assertEquals(shiftedMean,ZScore_Shifted,TOL);
     }
