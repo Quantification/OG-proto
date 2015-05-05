@@ -50,15 +50,13 @@ public class ValueAtRiskNormalDistrTest {
         double time = HORIZON/PERIODS;
         double timeRoot = Math.sqrt(HORIZON/PERIODS);
         final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(0, 1);
-        final ProbabilityDistribution<Double> NORMAL_Scaled = new NormalDistribution(MEAN, STD_DEV);
 
         //Strangely the shifted and scaled distribution gives the same result as the standard one.
         final double ZScore = NORMAL.getInverseCDF(1-QUANTILE);
-        final double ZScore_Scaled = NORMAL_Scaled.getInverseCDF(1-QUANTILE);
 
-
-        final double resultExpected = ZScore*STD_DEV*timeRoot + MEAN*timeRoot*timeRoot;
-        final double resultExpected_wrongSign = ZScore*STD_DEV*timeRoot- MEAN*timeRoot*timeRoot;
+        final double resultExpected = ZScore*STD_DEV*timeRoot + MEAN*time;
+        final double resultExpected_wrongSign = ZScore*STD_DEV*timeRoot- MEAN*time;
+        //Magic number is from the original test
         assertEquals(calcResult.getVaRValue(), 3 * 0.2 - 0.4*0.4*0.1, 1e-9);
     }
 
