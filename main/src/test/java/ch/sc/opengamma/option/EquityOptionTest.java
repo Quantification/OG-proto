@@ -1,4 +1,4 @@
-package ch.sc.opengamma;
+package ch.sc.opengamma.option;
 
 import com.opengamma.analytics.financial.ExerciseDecisionType;
 import com.opengamma.analytics.financial.commodity.definition.SettlementType;

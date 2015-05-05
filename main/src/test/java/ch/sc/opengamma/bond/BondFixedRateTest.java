@@ -1,4 +1,4 @@
-package ch.sc.opengamma;
+package ch.sc.opengamma.bond;
 
 import com.opengamma.analytics.financial.instrument.annuity.AnnuityCouponFixedDefinition;
 import com.opengamma.analytics.financial.instrument.annuity.AnnuityDefinition;
@@ -42,8 +42,7 @@ import static org.junit.Assert.assertNotEquals;
 /**
  * Created by Alexis on 04.05.15.
  */
-public class BondFixedRateTest
-{
+public class BondFixedRateTest {
     private static final Currency CURRENCY = Currency.EUR;
     private static final ZonedDateTime FIRST_ACCRUAL_DATE = DateUtils.getUTCDate(2005, 2, 20);
     private static final Period BOND_TERM = Period.ofYears(2);
@@ -76,6 +75,7 @@ public class BondFixedRateTest
     private static final YieldAndDiscountCurve YIELD_CURVE = new YieldCurve("EUR_curve", new ConstantDoublesCurve(0.04d));
 
     private static final MulticurveProviderDiscount MULTICURVE = new MulticurveProviderDiscount();
+
     static {
         MULTICURVE.setCurve(CURRENCY, YIELD_CURVE);
     }
@@ -92,8 +92,9 @@ public class BondFixedRateTest
             return CURRENCY;
         }
     };
+
     static {
-        ISSUER.put(ISSUER_CCY,YIELD_CURVE);
+        ISSUER.put(ISSUER_CCY, YIELD_CURVE);
     }
 
     private static final IssuerProviderDiscount ISSUER_PROVIDER_DISCOUNT = new IssuerProviderDiscount(MULTICURVE, ISSUER);
@@ -103,24 +104,22 @@ public class BondFixedRateTest
     final static double TOL = 1E-8;
 
     @Test
-    public void testAccruedInterest()
-    {
-    final double accruedInterest = bondConverted.getAccruedInterest();
+    public void testAccruedInterest() {
+        final double accruedInterest = bondConverted.getAccruedInterest();
 
         //Expected
-        final double daysSinceCouponYearFraction = DAY_COUNT.getDayCountFraction(FIRST_ACCRUAL_DATE,REFERENCE_DATE);
-        final double expectedAccruedInterest = daysSinceCouponYearFraction* RATE * NOTIONAL;
+        final double daysSinceCouponYearFraction = DAY_COUNT.getDayCountFraction(FIRST_ACCRUAL_DATE, REFERENCE_DATE);
+        final double expectedAccruedInterest = daysSinceCouponYearFraction * RATE * NOTIONAL;
         assertEquals(expectedAccruedInterest, accruedInterest, TOL);
     }
 
     @Test
-    public void testPresentValue()
-    {
+    public void testPresentValue() {
         final MultipleCurrencyAmount presentValue = bondCalculator.presentValue(bondConverted, ISSUER_PROVIDER_DISCOUNT);
         final double pvAmountEUR = presentValue.getAmount(CURRENCY);
         //Expected
         AnnuityCouponFixedDefinition coupons_def = bondDefinition.getCoupons();
-        AnnuityDefinition<PaymentFixedDefinition> nominal_def= bondDefinition.getNominal();
+        AnnuityDefinition<PaymentFixedDefinition> nominal_def = bondDefinition.getNominal();
 
         Annuity<CouponFixed> coupon = bondConverted.getCoupon();
         // BUG: Payment date differs from naive calc
@@ -130,18 +129,17 @@ public class BondFixedRateTest
         // Uses astronomic time intervals method
         double pvCoupons = 0;
         double pvCoupons_alt = 0;
-        for(int couponNo =0; couponNo<couponsCount; couponNo++)
-        {
+        for (int couponNo = 0; couponNo < couponsCount; couponNo++) {
             CouponFixedDefinition payment = coupons_def.getNthPayment(couponNo);
             double timeToPayment_alt = TimeCalculator.getTimeBetween(REFERENCE_DATE, payment.getPaymentDate());
-            double timeToPayment =DAY_COUNT.getDayCountFraction(REFERENCE_DATE,payment.getPaymentDate());
-            pvCoupons = pvCoupons+ payment.getAmount()*YIELD_CURVE.getDiscountFactor(timeToPayment);
-            pvCoupons_alt = pvCoupons_alt + payment.getAmount()*YIELD_CURVE.getDiscountFactor(timeToPayment_alt);
+            double timeToPayment = DAY_COUNT.getDayCountFraction(REFERENCE_DATE, payment.getPaymentDate());
+            pvCoupons = pvCoupons + payment.getAmount() * YIELD_CURVE.getDiscountFactor(timeToPayment);
+            pvCoupons_alt = pvCoupons_alt + payment.getAmount() * YIELD_CURVE.getDiscountFactor(timeToPayment_alt);
         }
 
         // To see in debugger
         // Naive: Is different from the nominal annuity payment date
-        double timeToMaturity_Naive = 23d/12d;
+        double timeToMaturity_Naive = 23d / 12d;
         // Our DayCount is "30E/360" THis worked OK in the test for accrued interest. Here does not work
         double timeToMaturity_withOurDayCount = TimeCalculator.getTimeBetween(REFERENCE_DATE, MATURITY_DATE, DAY_COUNT);
         // "Astronomic" TTM
@@ -154,16 +152,16 @@ public class BondFixedRateTest
         // All methods of discount factor calculation give the same result for the same arg.
         final double notionalDiscountFactor = YIELD_CURVE.getDiscountFactor(timeToMaturity);
         double ndf_ISSUER = ISSUER_PROVIDER_DISCOUNT.getDiscountFactor(ISSUER_CCY, timeToMaturity);
-        double ndf_MULTICURVE = MULTICURVE.getDiscountFactor(CURRENCY,timeToMaturity);
+        double ndf_MULTICURVE = MULTICURVE.getDiscountFactor(CURRENCY, timeToMaturity);
 
-        final double pvNotional = NOTIONAL*notionalDiscountFactor;
+        final double pvNotional = NOTIONAL * notionalDiscountFactor;
         double pvNotional_alt = NOTIONAL * YIELD_CURVE.getDiscountFactor(timeToMaturity_alt);
 
-        final double expectedPV = pvNotional+pvCoupons;
-        final double expectedPV_alt = pvNotional_alt+pvCoupons_alt;
+        final double expectedPV = pvNotional + pvCoupons;
+        final double expectedPV_alt = pvNotional_alt + pvCoupons_alt;
 
         assertEquals(expectedPV_alt, pvAmountEUR, TOL);
-        assertNotEquals(expectedPV,pvAmountEUR, 1E-6);
+        assertNotEquals(expectedPV, pvAmountEUR, 1E-6);
     }
 
 }
