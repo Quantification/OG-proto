@@ -83,8 +83,8 @@ public class EquityOptionTest {
      */
     final static StaticReplicationDataBundle marketData = new StaticReplicationDataBundle(volSurface, DISCOUNT_CURVE,  forwardCurve) ;
 
-
     final static double TOL = 1E-8;
+
     @Test
     public void testEquityOptionPresentValue()
     {
@@ -146,5 +146,53 @@ public class EquityOptionTest {
 
         //Assert
         assertEquals(expectedDelta,delta,1E-6);
+    }
+
+    @Test
+    public void testGammaBlackModel()
+    {
+        /**
+         * @param derivative An EquityOption, the OG-Analytics form of the derivative
+         * @param marketData A StaticReplicationDataBundle, containing a BlackVolatilitySurface, forward equity and funding curves
+         * @return The spot gamma wrt the spot underlying, ie the 2nd order sensitivity of the present value to the spot value of the underlying,
+         *          $\frac{\partial^2 (PV)}{\partial S^2}$
+         */
+        double gamma =  EquityOptionBlackMethod.getInstance().gammaWrtSpot(EUROPEAN_PUT, marketData);
+
+        //ExpectedValue
+        double dUnderlyingPrice = 0.01;
+        final double presentValue1 =  BlackFormulaRepository.price(forwardEquityPrice+dUnderlyingPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double presentValue0 =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double presentValue_1 =  BlackFormulaRepository.price(forwardEquityPrice-dUnderlyingPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double ddPresentValue = presentValue1 -2*presentValue0 + presentValue_1;
+        final double expectedGamma =ddPresentValue/(dUnderlyingPrice*dUnderlyingPrice);
+
+        //Assert
+        assertEquals(expectedGamma,gamma,1E-6);
+    }
+
+    @Test
+    public void testThetaBlackModel()
+    {
+        /**
+         * The forward (i.e. driftless) delta
+         * @param forward The forward value of the underlying
+         * @param strike The Strike
+         * @param timeToExpiry The time-to-expiry
+         * @param lognormalVol The log-normal volatility
+         * @param isCall true for call
+         * @return The forward delta
+         */
+        final double theta =  EquityOptionBlackMethod.getInstance().spotTheta(EUROPEAN_PUT, marketData);
+
+        //ExpectedValue
+        double dTime = 0.0001;
+        final double presentValueUpper =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY-dTime, logNormalVol, IS_CALL);
+        final double presentValueLower =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY+dTime, logNormalVol, IS_CALL);
+        final double dPresentValue = presentValueUpper - presentValueLower;
+        final double expectedTheta =dPresentValue/(2*dTime);
+
+        //Assert
+        assertEquals(expectedTheta,theta,1E-6);
     }
 }
