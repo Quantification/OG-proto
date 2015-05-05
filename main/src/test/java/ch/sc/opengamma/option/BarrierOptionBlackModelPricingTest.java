@@ -1,4 +1,4 @@
-package ch.sc.opengamma;
+package ch.sc.opengamma.option;
 
 import com.opengamma.analytics.financial.model.interestrate.curve.YieldCurve;
 import com.opengamma.analytics.financial.model.option.definition.Barrier;

@@ -1,4 +1,4 @@
-package ch.sc.opengamma;
+package ch.sc.opengamma.future;
 
 import com.opengamma.analytics.financial.commodity.definition.AgricultureFutureDefinition;
 import com.opengamma.analytics.financial.commodity.definition.SettlementType;

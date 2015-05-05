@@ -1,4 +1,4 @@
-package ch.sc.opengamma;
+package ch.sc.opengamma.forward;
 
 import com.opengamma.analytics.financial.forex.definition.ForexDefinition;
 import com.opengamma.analytics.financial.forex.derivative.Forex;
