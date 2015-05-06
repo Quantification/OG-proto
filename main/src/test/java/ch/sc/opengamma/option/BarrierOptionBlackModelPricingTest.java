@@ -10,9 +10,12 @@ import com.opengamma.analytics.financial.model.option.pricing.analytic.formula.B
 import com.opengamma.analytics.financial.model.option.pricing.analytic.formula.BlackFunctionData;
 import com.opengamma.analytics.financial.model.option.pricing.analytic.formula.BlackPriceFunction;
 import com.opengamma.analytics.financial.model.option.pricing.analytic.formula.EuropeanVanillaOption;
+import com.opengamma.analytics.financial.model.volatility.BlackFormulaRepository;
 import com.opengamma.analytics.financial.model.volatility.surface.VolatilitySurface;
 import com.opengamma.analytics.math.curve.ConstantDoublesCurve;
 import com.opengamma.analytics.math.function.Function1D;
+import com.opengamma.analytics.math.statistics.distribution.NormalDistribution;
+import com.opengamma.analytics.math.statistics.distribution.ProbabilityDistribution;
 import com.opengamma.analytics.math.surface.ConstantDoublesSurface;
 import com.opengamma.util.time.DateUtils;
 import com.opengamma.util.time.Expiry;
@@ -31,17 +34,20 @@ public class BarrierOptionBlackModelPricingTest {
 
         private static final ZonedDateTime REFERENCE_DATE = DateUtils.getUTCDate(2011, 7, 1);
         private static final ZonedDateTime EXPIRY_DATE = DateUtils.getUTCDate(2015, 1, 2);
-        private static final double EXPIRY_TIME = DateUtils.getDifferenceInYears(REFERENCE_DATE, EXPIRY_DATE);
-        private static final double STRIKE_MID = 100;
+        private static final double EXPIRY_TIME_Interval = DateUtils.getDifferenceInYears(REFERENCE_DATE, EXPIRY_DATE);
+        private static final double STRIKE_100 = 100;
         private static final double STRIKE_HIGH = 120;
         private static final boolean IS_CALL = true;
-        private static final EuropeanVanillaOption VANILLA_CALL_K100 = new EuropeanVanillaOption(STRIKE_MID, EXPIRY_TIME, IS_CALL);
-        private static final EuropeanVanillaOption VANILLA_PUT_K100 = new EuropeanVanillaOption(STRIKE_MID, EXPIRY_TIME, !IS_CALL);
-        private static final EuropeanVanillaOption VANILLA_PUT_KHI = new EuropeanVanillaOption(STRIKE_HIGH, EXPIRY_TIME, !IS_CALL);
-        private static final Barrier BARRIER_DOWN_IN = new Barrier(Barrier.KnockType.IN, Barrier.BarrierType.DOWN, Barrier.ObservationType.CONTINUOUS, 90);
-        private static final Barrier BARRIER_DOWN_OUT = new Barrier(Barrier.KnockType.OUT, Barrier.BarrierType.DOWN, Barrier.ObservationType.CONTINUOUS, 90);
-        private static final Barrier BARRIER_UP_IN = new Barrier(Barrier.KnockType.IN, Barrier.BarrierType.UP, Barrier.ObservationType.CONTINUOUS, 110);
-        private static final Barrier BARRIER_UP_OUT = new Barrier(Barrier.KnockType.OUT, Barrier.BarrierType.UP, Barrier.ObservationType.CONTINUOUS, 110);
+        private static final EuropeanVanillaOption VANILLA_CALL_K100 = new EuropeanVanillaOption(STRIKE_100, EXPIRY_TIME_Interval, IS_CALL);
+        private static final EuropeanVanillaOption VANILLA_PUT_K100 = new EuropeanVanillaOption(STRIKE_100, EXPIRY_TIME_Interval, !IS_CALL);
+        private static final EuropeanVanillaOption VANILLA_PUT_KHI = new EuropeanVanillaOption(STRIKE_HIGH, EXPIRY_TIME_Interval, !IS_CALL);
+
+        private static final double BARRIER_90 = 90;
+        private static final Barrier BARRIER_DOWN_IN = new Barrier(Barrier.KnockType.IN, Barrier.BarrierType.DOWN, Barrier.ObservationType.CONTINUOUS, BARRIER_90);
+        private static final Barrier BARRIER_DOWN_OUT = new Barrier(Barrier.KnockType.OUT, Barrier.BarrierType.DOWN, Barrier.ObservationType.CONTINUOUS, BARRIER_90);
+        private static final double BARRIER_110 = 110;
+        private static final Barrier BARRIER_UP_IN = new Barrier(Barrier.KnockType.IN, Barrier.BarrierType.UP, Barrier.ObservationType.CONTINUOUS, BARRIER_110);
+        private static final Barrier BARRIER_UP_OUT = new Barrier(Barrier.KnockType.OUT, Barrier.BarrierType.UP, Barrier.ObservationType.CONTINUOUS, BARRIER_110);
         private static final double REBATE = 2;
         private static final double SPOT = 105;
         private static final double RATE_DOM = 0.05; // Domestic rate
@@ -50,25 +56,48 @@ public class BarrierOptionBlackModelPricingTest {
         private static final double VOLATILITY = 0.20;
         private static final BlackBarrierPriceFunction BARRIER_FUNCTION = BlackBarrierPriceFunction.getInstance();
 
-        private static final double DF_FOR = Math.exp(-RATE_FOR * EXPIRY_TIME); // 'Base Ccy
-        private static final double DF_DOM = Math.exp(-RATE_DOM * EXPIRY_TIME); // 'Quote Ccy
+        private static final double DF_FOR = Math.exp(-RATE_FOR * EXPIRY_TIME_Interval); // 'Base Ccy
+        private static final double DF_DOM = Math.exp(-RATE_DOM * EXPIRY_TIME_Interval); // 'Quote Ccy
         private static final double FWD_FX = SPOT * DF_FOR / DF_DOM;
-        private static final BlackFunctionData DATA_BLACK = new BlackFunctionData(FWD_FX, DF_DOM, VOLATILITY);
+        private static final BlackFunctionData BLACK_FUNCTION_DATA = new BlackFunctionData(FWD_FX, DF_DOM, VOLATILITY);
         private static final BlackPriceFunction BLACK_FUNCTION = new BlackPriceFunction();
 
         @Test
         /** Tests the 'In-Out Parity' condition: Without rebates, the price of a Knock-In plus a Knock-Out of arbitrary barrier level must equal that of the underlying vanilla option */
-        public void inOutParityWithoutRebate() {
+        public void DownCallInOutPrice_AsInTextbook() {
 
             // Vanilla
             final Function1D<BlackFunctionData, Double> fcnVanillaCall = BLACK_FUNCTION.getPriceFunction(VANILLA_CALL_K100);
-            final double pxVanillaCall = fcnVanillaCall.evaluate(DATA_BLACK);
+            final double pxVanillaCall = fcnVanillaCall.evaluate(BLACK_FUNCTION_DATA);
 
             // Barriers without rebate
             final double noRebate = 0.0;
-            final double priceDownIn = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_IN, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final double priceDownOut = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_OUT, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            assertEquals("Knock In-Out Parity fails", 1.0, pxVanillaCall / (priceDownIn + priceDownOut), 1.e-6);
+            final double priceCallDownIn = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_IN, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
+            final double priceCallDownOut = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_OUT, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
+            assertEquals("Knock In-Out Parity fails", 1.0, pxVanillaCall / (priceCallDownIn + priceCallDownOut), 1.e-6);
+
+            //Expected Call Down and In  CallStrike > Barrier
+            // Hull/19 Exotic options / 6 Barrier options
+            final double rootTime = Math.sqrt(EXPIRY_TIME_Interval);
+            final double lambda =  0.5 + (RATE_DOM-RATE_FOR)/(VOLATILITY*VOLATILITY) ;
+            final double y = Math.log((BARRIER_90*BARRIER_90)/(SPOT*STRIKE_100))/(VOLATILITY*rootTime)
+                    +lambda * (VOLATILITY*rootTime);
+            final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(0, 1);
+
+            final double priceCallDownAndIn_Expected  =
+                    SPOT* DF_FOR*Math.pow(BARRIER_90/SPOT,2*lambda)*NORMAL.getCDF(y)
+                    -STRIKE_100*DF_DOM*Math.pow(BARRIER_90/SPOT,2*lambda - 2)* NORMAL.getCDF(y - VOLATILITY * rootTime);
+            assertEquals("Down-And-In Call price as in textbook",
+                    priceCallDownAndIn_Expected, priceCallDownIn, 1.e-9);
+
+            //How the calculator knows about RATE_FOR? OK, via CostOfCarry.
+
+            //Expected Call Down and Out  CallStrike > Barrier
+            final double vanillaCallPrice_Expected =  DF_DOM * BlackFormulaRepository.price(FWD_FX, STRIKE_100, EXPIRY_TIME_Interval, VOLATILITY, IS_CALL);
+            assertEquals("Vanilla call price is OK", vanillaCallPrice_Expected, pxVanillaCall, 1E-9);
+
+            final double priceCallDownAndOut_Expected  = vanillaCallPrice_Expected - priceCallDownAndIn_Expected;
+            assertEquals("Down-And-Out call price as in textbook", priceCallDownAndOut_Expected, priceCallDownOut, 1.e-9);
         }
 
         @Test
@@ -144,7 +173,7 @@ public class BarrierOptionBlackModelPricingTest {
 
             final double pxRebate = DF_DOM * REBATE;
             final Function1D<BlackFunctionData, Double> fcnVanillaCall = BLACK_FUNCTION.getPriceFunction(VANILLA_CALL_K100);
-            final double pxVanillaCall = fcnVanillaCall.evaluate(DATA_BLACK);
+            final double pxVanillaCall = fcnVanillaCall.evaluate(BLACK_FUNCTION_DATA);
 
             // KnockIn's with impossible to reach barrier's are guaranteed to pay the rebate at maturity
             final double pxDownInPut = BARRIER_FUNCTION.getPrice(VANILLA_PUT_K100, veryLowKnockIn, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
@@ -161,17 +190,17 @@ public class BarrierOptionBlackModelPricingTest {
             // Derivatives
             final double[] derivs = new double[5];
             BARRIER_FUNCTION.getPriceAdjoint(VANILLA_CALL_K100, veryLowKnockIn, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY, derivs);
-            assertTrue("Impossible KnockIn: rate sens is incorrect", derivs[2] / Math.abs((-1 * EXPIRY_TIME * DF_DOM * REBATE) - 1) < 1e-6);
+            assertTrue("Impossible KnockIn: rate sens is incorrect", derivs[2] / Math.abs((-1 * EXPIRY_TIME_Interval * DF_DOM * REBATE) - 1) < 1e-6);
             assertEquals("Impossible KnockIn: Encountered derivative, other than d/dr, != 0", 0.0, derivs[0] + derivs[1] + derivs[3] + derivs[4], 1.0e-6);
 
             BARRIER_FUNCTION.getPriceAdjoint(VANILLA_CALL_K100, veryHighKnockIn, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY, derivs);
-            assertTrue("Impossible KnockIn: rate sens is incorrect", derivs[2] / Math.abs((-1 * EXPIRY_TIME * DF_DOM * REBATE) - 1) < 1e-6);
+            assertTrue("Impossible KnockIn: rate sens is incorrect", derivs[2] / Math.abs((-1 * EXPIRY_TIME_Interval * DF_DOM * REBATE) - 1) < 1e-6);
             assertEquals("Impossible KnockIn: Encountered derivative, other than d/dr, != 0", 0.0, derivs[0] + derivs[1] + derivs[3] + derivs[4], 1.0e-6);
 
             // Barrier: [0] spot, [1] strike, [2] rate, [3] cost-of-carry, [4] volatility.
             BARRIER_FUNCTION.getPriceAdjoint(VANILLA_CALL_K100, veryLowKnockOut, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY, derivs);
             // Vanilla: [0] the price, [1] the derivative with respect to the forward, [2] the derivative with respect to the volatility and [3] the derivative with respect to the strike.
-            final double[] vanillaDerivs = BLACK_FUNCTION.getPriceAdjoint(VANILLA_CALL_K100, DATA_BLACK);
+            final double[] vanillaDerivs = BLACK_FUNCTION.getPriceAdjoint(VANILLA_CALL_K100, BLACK_FUNCTION_DATA);
             assertEquals("Impossible KnockOut: Vega doesn't match vanilla", vanillaDerivs[2], derivs[4], 1e-6);
             assertEquals("Impossible KnockOut: Dual Delta (d/dK) doesn't match vanilla", vanillaDerivs[3], derivs[1], 1e-6);
             assertEquals("Impossible KnockOut: Delta doesn't match vanilla", vanillaDerivs[1] * DF_FOR / DF_DOM, derivs[0], 1e-6);
@@ -194,22 +223,22 @@ public class BarrierOptionBlackModelPricingTest {
             final Expiry expiry = new Expiry(EXPIRY_DATE);
 
             final double priceDI1 = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_IN, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final EuropeanStandardBarrierOptionDefinition optionBarrierDI = new EuropeanStandardBarrierOptionDefinition(STRIKE_MID, expiry, IS_CALL, BARRIER_DOWN_IN, REBATE);
+            final EuropeanStandardBarrierOptionDefinition optionBarrierDI = new EuropeanStandardBarrierOptionDefinition(STRIKE_100, expiry, IS_CALL, BARRIER_DOWN_IN, REBATE);
             final double priceDI2 = model.getPricingFunction(optionBarrierDI).evaluate(data);
             assertEquals("Comparison Down In", priceDI2, priceDI1, 1.0E-10);
 
             final double priceDO1 = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_OUT, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final EuropeanStandardBarrierOptionDefinition optionBarrierDO = new EuropeanStandardBarrierOptionDefinition(STRIKE_MID, expiry, IS_CALL, BARRIER_DOWN_OUT, REBATE);
+            final EuropeanStandardBarrierOptionDefinition optionBarrierDO = new EuropeanStandardBarrierOptionDefinition(STRIKE_100, expiry, IS_CALL, BARRIER_DOWN_OUT, REBATE);
             final double priceDO2 = model.getPricingFunction(optionBarrierDO).evaluate(data);
             assertEquals("Comparison Down Out", priceDO2, priceDO1, 1.0E-10);
 
             final double priceUI1 = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_UP_IN, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final EuropeanStandardBarrierOptionDefinition optionBarrierUI = new EuropeanStandardBarrierOptionDefinition(STRIKE_MID, expiry, IS_CALL, BARRIER_UP_IN, REBATE);
+            final EuropeanStandardBarrierOptionDefinition optionBarrierUI = new EuropeanStandardBarrierOptionDefinition(STRIKE_100, expiry, IS_CALL, BARRIER_UP_IN, REBATE);
             final double priceUI2 = model.getPricingFunction(optionBarrierUI).evaluate(data);
             assertEquals("Comparison Up In", priceUI2, priceUI1, 1.0E-10);
 
             final double priceUO1 = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_UP_OUT, REBATE, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final EuropeanStandardBarrierOptionDefinition optionBarrierUO = new EuropeanStandardBarrierOptionDefinition(STRIKE_MID, expiry, IS_CALL, BARRIER_UP_OUT, REBATE);
+            final EuropeanStandardBarrierOptionDefinition optionBarrierUO = new EuropeanStandardBarrierOptionDefinition(STRIKE_100, expiry, IS_CALL, BARRIER_UP_OUT, REBATE);
             final double priceUO2 = model.getPricingFunction(optionBarrierUO).evaluate(data);
             assertEquals("Comparison Up Out", priceUO2, priceUO1, 1.0E-10);
 
