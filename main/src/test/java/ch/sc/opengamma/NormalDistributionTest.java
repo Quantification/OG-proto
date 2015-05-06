@@ -52,4 +52,36 @@ public class NormalDistributionTest {
         assertEquals(standardMean-stretchedStdDev, NORMAL_Stretched.getInverseCDF(quantileStdDev_Down),TOL);
         assertEquals(standardMean+stretchedStdDev, NORMAL_Stretched.getInverseCDF(quantileStdDev_Up),TOL);
     }
+
+    @Test
+    public void  testCumulativeDistribution_ShiftMean_FAILS()
+    {
+        final double standardMean = 0;
+        final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(standardMean, 1);
+        // Symmetric Cumulative distribution function (mean) = 1/2.
+        final double cdfOfMean = 0.5;
+        assertEquals(NORMAL.getCDF(standardMean),cdfOfMean,1E-9);
+
+        final double shiftedMean = 100;
+        final ProbabilityDistribution<Double> NORMAL_Shifted = new NormalDistribution(shiftedMean,1);
+        assertEquals(NORMAL_Shifted.getCDF(shiftedMean),cdfOfMean,1E-9);
+    }
+
+    @Test
+    public void testCumulativeDistribution_NonUnitStdDeriv_FAILS()
+    {
+        final double standardMean = 0;
+        final double standardStdDev = 1;
+        final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(standardMean, standardStdDev);
+        final double quantileStdDev_Down = NORMAL.getCDF(standardMean - standardStdDev);
+        final double quantileStdDev_Up = NORMAL.getCDF(standardMean+standardStdDev);
+
+        final double stretchedStdDev = 10;
+        final ProbabilityDistribution<Double> NORMAL_Stretched = new NormalDistribution(standardMean,stretchedStdDev);
+
+        //FAILS
+        //assertEquals(quantileStdDev_Down, NORMAL_Stretched.getCDF(standardMean - stretchedStdDev),1E-6);
+        assertEquals(quantileStdDev_Up, NORMAL_Stretched.getCDF(standardMean + stretchedStdDev),1E-6);
+    }
+
 }
