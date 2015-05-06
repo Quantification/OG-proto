@@ -111,7 +111,9 @@ public class BondFixedRateTest {
         assertEquals(expectedAccruedInterest, accruedInterest, TOL);
     }
 
-   private static final DayCount DAY_COUNT_ActAct = DayCountFactory.INSTANCE.getDayCount("Actual/Actual ISDA");
+    // Is never passed to tested methods; is used only for expected value calculation.
+    private static final DayCount DAY_COUNT_ActAct = DayCountFactory.INSTANCE.getDayCount("Actual/Actual ISDA");
+
     @Test
     // Let's try to recover calculation of time interval to maturity - there is a zillion of subtleties
     public void detectCalculationMethodOfTimeIntervalToPrincipalPaymentDate()
@@ -150,9 +152,8 @@ public class BondFixedRateTest {
         assertEquals(timeToMaturity_TimeCalc,timeToMaturity_fromNominal, TOL);
 
         //THis method uses day count "Actual/Actual ISDA" - gives coincidence with regular PV
-
         final double timeToMaturity_ActAct = DAY_COUNT_ActAct.getDayCountFraction(REFERENCE_DATE, MATURITY_DATE);
-        // And Bingo! It is the TTM from nominal
+        // And Bingo! It equals the TTM from nominal
         assertEquals(timeToMaturity_ActAct,timeToMaturity_fromNominal, TOL);
     }
 
@@ -170,7 +171,29 @@ public class BondFixedRateTest {
     }
 
     @Test
-    public void PresentValue_CompareToCalculation_FAILS() {
+    public void PresentValue_UsingDayCount30E360_DifferentValue() {
+        final MultipleCurrencyAmount presentValue = bondCalculator.presentValue(bondConverted, ISSUER_PROVIDER_DISCOUNT);
+        final double pvAmountEUR = presentValue.getAmount(CURRENCY);
+
+        //Expected
+        // Fixed rate bond is essentially a wrapper of coupons annuity and principal payoff.
+        // Here payments' dates are absolute astronomical dates
+        AnnuityCouponFixedDefinition coupons_def = bondDefinition.getCoupons();
+        // AnnuityDefinition<PaymentFixedDefinition> nominal_def = bondDefinition.getNominal();
+
+        final int couponsCount = coupons_def.getNumberOfPayments();
+        // Uses astronomic time intervals method
+        double pvCoupons = CouponsNPV(coupons_def, DAY_COUNT_30E360);
+
+        final double timeToMaturity = DAY_COUNT_30E360.getDayCountFraction(REFERENCE_DATE, MATURITY_DATE);
+        final double pvNotional = NOTIONAL * YIELD_CURVE.getDiscountFactor(timeToMaturity);
+
+        final double expectedPV = pvNotional + pvCoupons;
+        assertNotEquals(expectedPV, pvAmountEUR, 1E-6);
+    }
+
+    @Test
+    public void PresentValue_UsingDayCountActAct_SameValue() {
         final MultipleCurrencyAmount presentValue = bondCalculator.presentValue(bondConverted, ISSUER_PROVIDER_DISCOUNT);
         final double pvAmountEUR = presentValue.getAmount(CURRENCY);
 
@@ -182,35 +205,27 @@ public class BondFixedRateTest {
 
         final int couponsCount = coupons_def.getNumberOfPayments();
         // Uses astronomic time intervals method
-        double pvCoupons = CouponsNPV(coupons_def, DAY_COUNT_30E360);
-        double pvCoupons_alt =CouponsNPV(coupons_def, DAY_COUNT_ActAct);
+        double pvCoupons = CouponsNPV(coupons_def, DAY_COUNT_ActAct);
 
-
-        // To see in debugger
-        // Naive: Is different from the nominal annuity payment date
-        double timeToMaturity_Naive = 23d / 12d;
-        // Our DayCount is "30E/360" THis worked OK in the test for accrued interest. Here does not work
-        double timeToMaturity_withOurDayCount = TimeCalculator.getTimeBetween(REFERENCE_DATE, MATURITY_DATE, DAY_COUNT_30E360);
-        // "Astronomic" TTM
-        final double timeToMaturity_astro = DateUtils.getDifferenceInYears(REFERENCE_DATE, MATURITY_DATE);
-        final double timeToMaturity = DAY_COUNT_30E360.getDayCountFraction(REFERENCE_DATE, MATURITY_DATE);
-        //THis method uses day count "Actual/Actual ISDA" - gives coincidence with regular PV
-        double timeToMaturity_alt = TimeCalculator.getTimeBetween(REFERENCE_DATE, MATURITY_DATE);
-        //double timeToMaturity_fromNominal = nominal.getNthPayment(0).getPaymentTime();
-
-        // All methods of discount factor calculation give the same result for the same arg.
-        final double notionalDiscountFactor = YIELD_CURVE.getDiscountFactor(timeToMaturity);
-        double ndf_ISSUER = ISSUER_PROVIDER_DISCOUNT.getDiscountFactor(ISSUER_CCY, timeToMaturity);
-        double ndf_MULTICURVE = MULTICURVE.getDiscountFactor(CURRENCY, timeToMaturity);
-
-        final double pvNotional = NOTIONAL * notionalDiscountFactor;
-        double pvNotional_alt = NOTIONAL * YIELD_CURVE.getDiscountFactor(timeToMaturity_alt);
+        final double timeToMaturity = DAY_COUNT_ActAct.getDayCountFraction(REFERENCE_DATE, MATURITY_DATE);
+        final double pvNotional = NOTIONAL * YIELD_CURVE.getDiscountFactor(timeToMaturity);
 
         final double expectedPV = pvNotional + pvCoupons;
-        final double expectedPV_alt = pvNotional_alt + pvCoupons_alt;
+        assertEquals(expectedPV, pvAmountEUR, 1E-9);
+    }
 
-        assertEquals(expectedPV_alt, pvAmountEUR, TOL);
-        assertNotEquals(expectedPV, pvAmountEUR, 1E-6);
+    @Test
+    public void DifferentDiscountFactorsCalculators_ProduceSameResult()
+    {
+        final double timeToMaturity = DAY_COUNT_ActAct.getDayCountFraction(REFERENCE_DATE, MATURITY_DATE);
+
+        double ndf_ISSUER = ISSUER_PROVIDER_DISCOUNT.getDiscountFactor(ISSUER_CCY, timeToMaturity);
+        double ndf_MULTICURVE = MULTICURVE.getDiscountFactor(CURRENCY, timeToMaturity);
+        assertEquals(ndf_ISSUER, ndf_MULTICURVE, 1E-9);
+
+        final double ndf_YC = YIELD_CURVE.getDiscountFactor(timeToMaturity);
+        assertEquals(ndf_YC, ndf_MULTICURVE, 1E-9);
+        assertEquals(ndf_YC, ndf_ISSUER, 1E-9);
     }
 
 
