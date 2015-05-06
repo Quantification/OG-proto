@@ -220,4 +220,22 @@ public class EquityOptionTest {
         //Assert NB precision 0.0001
         assertEquals(expectedVega,vega,1E-6);
     }
+
+    @Test
+    public void testRhoBlackModel()
+    {
+        final double rho =  EquityOptionBlackMethod.getInstance().rhoBlackScholes(EUROPEAN_PUT, marketData);
+
+        //ExpectedValue derivative w.r.to interest rate
+        double dR = 0.001;
+        final double df_up = Math.exp(-dR*TIME_TO_EXPIRY);// exponent is of -r*T
+        final double df_down = Math.exp(dR * TIME_TO_EXPIRY);
+        final double presentValueUpper = (1/df_up)*BlackFormulaRepository.price(forwardEquityPrice*df_up, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double presentValueLower = (1/df_down)* BlackFormulaRepository.price(forwardEquityPrice*df_down, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
+        final double dPresentValue = presentValueUpper - presentValueLower;
+        final double expectedRho = dPresentValue/(2*dR);
+
+        //Assert NB precision 0.0001
+        assertEquals(expectedRho,rho,1E-6);
+    }
 }
