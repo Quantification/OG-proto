@@ -11,6 +11,8 @@ import com.opengamma.analytics.financial.model.interestrate.curve.YieldAndDiscou
 import com.opengamma.analytics.financial.model.volatility.BlackFormulaRepository;
 import com.opengamma.analytics.financial.model.volatility.surface.BlackVolatilitySurfaceStrike;
 import com.opengamma.analytics.math.curve.ConstantDoublesCurve;
+import com.opengamma.analytics.math.statistics.distribution.NormalDistribution;
+import com.opengamma.analytics.math.statistics.distribution.ProbabilityDistribution;
 import com.opengamma.analytics.math.surface.ConstantDoublesSurface;
 import com.opengamma.analytics.math.surface.Surface;
 import com.opengamma.lang.annotation.ExternalFunction;
@@ -96,12 +98,19 @@ public class EquityOptionTest {
         final double expectedPV =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol, IS_CALL);
 
         //Act
-       final EquityOptionBlackMethod Calc = EquityOptionBlackMethod.getInstance();
+        final EquityOptionBlackMethod Calc = EquityOptionBlackMethod.getInstance();
         final double pv =  Calc.presentValue(EUROPEAN_PUT, marketData)/UNIT_AMOUNT ;
 
         //Assert
         assertEquals(expectedPV,pv,TOL);
+        //Expected explicit
+        final double rootTime = Math.sqrt(TIME_TO_EXPIRY);
+        final double d1 = Math.log(forwardEquityPrice/STRIKE)/(logNormalVol*rootTime)+ 0.5 * (logNormalVol*rootTime);
+        final double d2 = Math.log(forwardEquityPrice/STRIKE)/(logNormalVol*rootTime)- 0.5 * (logNormalVol*rootTime);
+        final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(0, 1);
+        final double calculatedPV = STRIKE * NORMAL.getCDF(-d2)-forwardEquityPrice *  NORMAL.getCDF(-d1);
 
+        assertEquals(calculatedPV,pv,TOL);
     }
 
     @Test
