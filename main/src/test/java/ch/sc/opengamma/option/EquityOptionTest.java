@@ -204,4 +204,20 @@ public class EquityOptionTest {
         //Assert
         assertEquals(expectedTheta,theta,1E-6);
     }
+
+    @Test
+    public void testVegaBlackModel()
+    {
+        final double vega =  EquityOptionBlackMethod.getInstance().vega(EUROPEAN_PUT, marketData);
+
+        //ExpectedValue deriwative w.r.to volatility
+        double dVol = 0.001;
+        final double presentValueUpper =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol+dVol, IS_CALL);
+        final double presentValueLower =  BlackFormulaRepository.price(forwardEquityPrice, STRIKE, TIME_TO_EXPIRY, logNormalVol-dVol, IS_CALL);
+        final double dPresentValue = presentValueUpper - presentValueLower;
+        final double expectedVega = dPresentValue/(2*dVol);
+
+        //Assert NB precision 0.0001
+        assertEquals(expectedVega,vega,1E-6);
+    }
 }

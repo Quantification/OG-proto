@@ -86,8 +86,8 @@ public class ValueAtRiskNormalDistrTest {
         final VaRCalculationResult calcResult = CALC.evaluate(PARAM_Median, 0.);
         final double VaR = calcResult.getVaRValue();
         //Expected
-        double time = HORIZON/PERIODS;
-        double median = MEAN_NONZERO*time;
+        final double time = HORIZON/PERIODS;
+        final double median = MEAN_NONZERO*time;
         assertEquals(median,VaR, 1e-6);
     }
 }
