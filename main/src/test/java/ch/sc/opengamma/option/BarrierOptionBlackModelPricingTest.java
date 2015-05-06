@@ -63,7 +63,9 @@ public class BarrierOptionBlackModelPricingTest {
         private static final BlackPriceFunction BLACK_FUNCTION = new BlackPriceFunction();
 
         @Test
-        /** Tests the 'In-Out Parity' condition: Without rebates, the price of a Knock-In plus a Knock-Out of arbitrary barrier level must equal that of the underlying vanilla option */
+        /** Tests the 'In-Out Parity' condition: Without rebates,
+         * the price of a Knock-In plus a Knock-Out of arbitrary barrier level must equal
+         * that of the underlying vanilla option */
         public void DownCallInOutPrice_AsInTextbook() {
 
             // Vanilla
@@ -72,9 +74,11 @@ public class BarrierOptionBlackModelPricingTest {
 
             // Barriers without rebate
             final double noRebate = 0.0;
-            final double priceCallDownIn = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_IN, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            final double priceCallDownOut = BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_OUT, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
-            assertEquals("Knock In-Out Parity fails", 1.0, pxVanillaCall / (priceCallDownIn + priceCallDownOut), 1.e-6);
+            final double priceCallDownIn =
+                    BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_IN, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
+            final double priceCallDownOut =
+                    BARRIER_FUNCTION.getPrice(VANILLA_CALL_K100, BARRIER_DOWN_OUT, noRebate, SPOT, COST_OF_CARRY, RATE_DOM, VOLATILITY);
+            assertEquals("Knock In-Out Parity fails", pxVanillaCall ,(priceCallDownIn + priceCallDownOut), 1.e-9);
 
             //Expected Call Down and In  CallStrike > Barrier
             // Hull/19 Exotic options / 6 Barrier options
@@ -93,7 +97,8 @@ public class BarrierOptionBlackModelPricingTest {
             //How the calculator knows about RATE_FOR? OK, via CostOfCarry.
 
             //Expected Call Down and Out  CallStrike > Barrier
-            final double vanillaCallPrice_Expected =  DF_DOM * BlackFormulaRepository.price(FWD_FX, STRIKE_100, EXPIRY_TIME_Interval, VOLATILITY, IS_CALL);
+            final double vanillaCallPrice_Expected =
+                    DF_DOM * BlackFormulaRepository.price(FWD_FX, STRIKE_100, EXPIRY_TIME_Interval, VOLATILITY, IS_CALL);
             assertEquals("Vanilla call price is OK", vanillaCallPrice_Expected, pxVanillaCall, 1E-9);
 
             final double priceCallDownAndOut_Expected  = vanillaCallPrice_Expected - priceCallDownAndIn_Expected;

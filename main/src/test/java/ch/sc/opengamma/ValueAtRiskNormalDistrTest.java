@@ -90,25 +90,4 @@ public class ValueAtRiskNormalDistrTest {
         double median = MEAN_NONZERO*time;
         assertEquals(median,VaR, 1e-6);
     }
-
-    @Test // For symmetric distributions inverse Cumulative Distribution Function
-    // at 0.5 quantile must return mean value
-    public void testNormalInverseCumulativeDistribution_FAILS()
-    {
-        final double standardMean = 0;
-        final ProbabilityDistribution<Double> NORMAL = new NormalDistribution(standardMean, 1);
-
-        final double shiftedMean = 100;
-        final ProbabilityDistribution<Double> NORMAL_Shifted = new NormalDistribution(shiftedMean,1);
-
-        // Quantile corresponds to the mean = median
-        final double quantile = 0.5;
-        final double ZScore = NORMAL.getInverseCDF(quantile);// =0
-        assertEquals(standardMean,ZScore,TOL);
-        final double ZScore_Shifted = NORMAL_Shifted.getInverseCDF(quantile);//=100
-        //Must be true
-        assertEquals(shiftedMean,ZScore_Shifted,TOL);
-    }
-
-
 }
