@@ -6,12 +6,17 @@ import com.opengamma.analytics.financial.commodity.derivative.AgricultureFuture;
 import com.opengamma.analytics.financial.equity.future.derivative.EquityFuture;
 import com.opengamma.analytics.financial.equity.future.derivative.EquityIndexDividendFuture;
 import com.opengamma.analytics.financial.future.MarkToMarketFuturesCalculator;
+import com.opengamma.analytics.financial.model.interestrate.curve.YieldAndDiscountCurve;
+import com.opengamma.analytics.financial.model.interestrate.curve.YieldCurve;
 import com.opengamma.analytics.financial.simpleinstruments.pricing.SimpleFutureDataBundle;
+import com.opengamma.analytics.math.curve.ConstantDoublesCurve;
 import com.opengamma.id.ExternalId;
 import com.opengamma.util.money.Currency;
 import com.opengamma.util.time.DateUtils;
 import org.junit.Test;
 import org.threeten.bp.ZonedDateTime;
+
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -69,7 +74,8 @@ public class FuturePresentValueTest {
          * NOTE: Each EquityFuturesPricingMethod requires different data.
          * Some members of the data bundle may be null!
          */
-        final SimpleFutureDataBundle dataBundle = new SimpleFutureDataBundle(null, currentPrice, null, null, null);
+        final YieldAndDiscountCurve yieldAndDiscountCurve = null;
+        final SimpleFutureDataBundle dataBundle = new SimpleFutureDataBundle(yieldAndDiscountCurve, currentPrice, null, null, null);
 
         //Act
         final double  pv = PVC.visitEquityFuture(equityFuture,dataBundle);

@@ -109,6 +109,11 @@ public class BondFixedRateTest {
         final double daysSinceCouponYearFraction = DAY_COUNT_30E360.getDayCountFraction(FIRST_ACCRUAL_DATE, REFERENCE_DATE);
         final double expectedAccruedInterest = daysSinceCouponYearFraction * RATE * NOTIONAL;
         assertEquals(expectedAccruedInterest, accruedInterest, TOL);
+
+        //Unexpected
+        final double daysSinceCouponYearFractionAct = DAY_COUNT_ActAct.getDayCountFraction(FIRST_ACCRUAL_DATE, REFERENCE_DATE);
+        final double expectedAccruedInterestActAct = daysSinceCouponYearFractionAct * RATE * NOTIONAL;
+        assertNotEquals(expectedAccruedInterestActAct, accruedInterest, TOL);
     }
 
     // Is never passed to tested methods; is used only for expected value calculation.

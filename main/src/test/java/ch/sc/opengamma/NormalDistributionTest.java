@@ -13,8 +13,7 @@ public class NormalDistributionTest {
 
     private static final double TOL = 1E-12;
 
-    @Test // For symmetric distributions inverse Cumulative Distribution Function
-    // at 0.5 quantile must return mean value
+    @Test // For symmetric distributions inverse Cumulative Distribution Function at 0.5 quantile must return mean value
     public void testInverseCumulativeDistribution_ShiftMean_FAILS()
     {
         final double standardMean = 0;

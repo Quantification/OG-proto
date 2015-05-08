@@ -114,7 +114,8 @@ public class ForexForwardTest {
     }
 
 
-    private static final MulticurveProviderDiscount MULTICURVES = createMulticurvesEURUSD();
+    private static final MulticurveProviderDiscount MULTICURVES
+            = createMulticurvesEURUSD();
     private static final InterpolatedDoublesCurve FWD_RATES = new InterpolatedDoublesCurve(MARKET_QUOTES_TIME, MARKET_QUOTES_FWD, LINEAR_FLAT, true);
     private static final MulticurveForwardPointsProviderDiscount MULTICURVES_FWD =
             new MulticurveForwardPointsProviderDiscount(MULTICURVES, FWD_RATES, PAIR);
